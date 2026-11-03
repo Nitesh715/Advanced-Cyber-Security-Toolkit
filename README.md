@@ -171,3 +171,9 @@ The developer is not responsible for misuse of this toolkit.
 ### Vulnerability Scanner
 
 ![Vulnerability Scanner](screenshots/vulnerability_scanner.png)
+
+## AI Malware Analyzer Project Report
+
+A separate educational Windows desktop project for static PE file inspection, hash calculation, indicator checks, an experimental Random Forest result, and saved text reports. It does not execute files or provide runtime behavior analysis. Its small-sample model metrics are educational only.
+
+Read the [AI Malware Analyzer project report](AI_Malware_Analyzer/PROJECT_REPORT.md) for the design, feature flow, test evidence, setup summary, and limitations.

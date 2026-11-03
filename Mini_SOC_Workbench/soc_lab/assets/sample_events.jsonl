@@ -1,0 +1,9 @@
+{"event_id":"EVT-0001","timestamp":"2026-11-03T14:00:00Z","event_type":"auth_failure","host":"win-lab-01","user":"analyst-demo","source_ip":"203.0.113.44","details":{"source":"synthetic training data"}}
+{"event_id":"EVT-0002","timestamp":"2026-11-03T14:01:00Z","event_type":"auth_failure","host":"win-lab-01","user":"analyst-demo","source_ip":"203.0.113.44","details":{"source":"synthetic training data"}}
+{"event_id":"EVT-0003","timestamp":"2026-11-03T14:02:00Z","event_type":"auth_failure","host":"win-lab-01","user":"analyst-demo","source_ip":"203.0.113.44","details":{"source":"synthetic training data"}}
+{"event_id":"EVT-0004","timestamp":"2026-11-03T14:03:00Z","event_type":"auth_failure","host":"win-lab-01","user":"analyst-demo","source_ip":"203.0.113.44","details":{"source":"synthetic training data"}}
+{"event_id":"EVT-0005","timestamp":"2026-11-03T14:04:00Z","event_type":"auth_failure","host":"win-lab-01","user":"analyst-demo","source_ip":"203.0.113.44","details":{"source":"synthetic training data"}}
+{"event_id":"EVT-0006","timestamp":"2026-11-03T14:05:00Z","event_type":"auth_success","host":"win-lab-01","user":"analyst-demo","source_ip":"203.0.113.44","details":{"source":"synthetic training data"}}
+{"event_id":"EVT-0007","timestamp":"2026-11-03T14:07:00Z","event_type":"suspicious_process_execution","host":"win-lab-01","user":"analyst-demo","source_ip":"203.0.113.44","details":{"process_label":"simulated-for-detection-demo","source":"synthetic training data"}}
+{"event_id":"EVT-0008","timestamp":"2026-11-03T14:08:00Z","event_type":"privileged_group_change","host":"win-lab-01","user":"analyst-demo","source_ip":"203.0.113.44","details":{"group":"Lab-Administrators","source":"synthetic training data"}}
+{"event_id":"EVT-0009","timestamp":"2026-11-03T14:12:00Z","event_type":"auth_success","host":"linux-lab-01","user":"student-demo","source_ip":"192.0.2.18","details":{"source":"synthetic benign event"}}

@@ -20,6 +20,10 @@ A Python-based cybersecurity toolkit with a graphical user interface (GUI) for p
 - SQLite Database
 - Security Reports
 
+## Mini-SOC Workbench
+
+An offline-first SOC lab with incident triage, configurable detection rules, Wazuh alert JSONL import, and a local dashboard. [Open the project](Mini_SOC_Workbench/README.md).
+
 ## Installation
 
 ### 1. Clone the Repository

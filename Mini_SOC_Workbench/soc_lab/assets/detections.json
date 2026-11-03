@@ -1,0 +1,62 @@
+{
+  "rules": [
+    {
+      "id": "AUTH-001",
+      "name": "Repeated authentication failures",
+      "type": "threshold",
+      "severity": "high",
+      "match": {"event_type": "auth_failure"},
+      "group_by": ["host", "user", "source_ip"],
+      "threshold": 5,
+      "window_minutes": 10,
+      "attack_technique": "T1110",
+      "summary": "At least five authentication failures for the same account, host, and source IP occurred within ten minutes.",
+      "recommended_actions": [
+        "Review the authentication timeline and confirm whether the source is expected.",
+        "Check for a successful login from the same source after the failures."
+      ]
+    },
+    {
+      "id": "AUTH-002",
+      "name": "Authentication failures followed by success",
+      "type": "sequence",
+      "severity": "critical",
+      "start_match": {"event_type": "auth_failure"},
+      "end_match": {"event_type": "auth_success"},
+      "group_by": ["host", "user", "source_ip"],
+      "window_minutes": 15,
+      "attack_technique": "T1110",
+      "summary": "A successful authentication followed failures for the same account, host, and source IP within fifteen minutes.",
+      "recommended_actions": [
+        "Validate the login with the account owner through an approved channel.",
+        "Review subsequent activity for the account and preserve relevant logs."
+      ]
+    },
+    {
+      "id": "EXEC-001",
+      "name": "Suspicious process behavior flagged by lab telemetry",
+      "type": "single",
+      "severity": "high",
+      "match": {"event_type": "suspicious_process_execution"},
+      "attack_technique": "T1059",
+      "summary": "Lab telemetry marked process behavior for analyst review.",
+      "recommended_actions": [
+        "Review process ancestry, user context, and the related host timeline.",
+        "Do not isolate or stop a process until the alert is validated."
+      ]
+    },
+    {
+      "id": "IDENTITY-001",
+      "name": "Privileged group membership changed",
+      "type": "single",
+      "severity": "high",
+      "match": {"event_type": "privileged_group_change"},
+      "attack_technique": "T1098",
+      "summary": "A privileged group membership change was recorded in the lab telemetry.",
+      "recommended_actions": [
+        "Confirm the change was approved and identify the initiating account.",
+        "Review nearby authentication and process events on the affected host."
+      ]
+    }
+  ]
+}

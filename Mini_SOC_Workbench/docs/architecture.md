@@ -30,10 +30,14 @@ Authorized telemetry or synthetic JSONL
 
 - `adapters.py` converts normalized JSONL directly and maps exported Wazuh alert JSONL into the normalized event model.
 - `models.py` validates required fields and timezone-aware timestamps.
-- `engine.py` loads JSONL and rule JSON, emits single-event, threshold, and sequence alerts, then connects alerts sharing a host or source IP within the selected time window.
-- `cli.py` produces machine-readable alerts/cases and a Markdown case summary.
-- `dashboard.py` analyzes the input once at startup, serves the static interface and JSON API on `127.0.0.1`, and persists only case status, assignee, and analyst notes.
+- `engine.py` loads JSONL and rule JSON, emits single-event, threshold (including distinct-value thresholds), and sequence alerts, then connects alerts sharing a host or source IP within the selected time window. It carries technique, tactic, and telemetry metadata into alerts and coverage records.
+- `cli.py` produces machine-readable alerts/cases, an ATT&CK coverage JSON export, and a Markdown case and mapping summary.
+- `dashboard.py` analyzes the input once at startup, serves the static interface and JSON API (including `/api/coverage`) on `127.0.0.1`, and persists only case status, assignee, and analyst notes.
 - `static/` is an offline interface with no third-party JavaScript, fonts, or API calls. The Event Explorer also displays events that did not trigger a detection.
+
+## ATT&CK coverage
+
+Detection rules store `attack.technique_id`, `attack.technique_name`, and one or more `attack.tactics` alongside a plain-language summary and `data_sources`. The coverage view displays all configured rules, their current alert counts, telemetry requirements, and official MITRE links. It counts techniques and tactics represented by the rule set; it does not estimate complete enterprise coverage. Mappings are behavior-level context and must be checked against the evidence and current ATT&CK Enterprise content.
 
 ## Case scoring
 

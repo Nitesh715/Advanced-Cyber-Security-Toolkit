@@ -28,13 +28,15 @@ To load an exported Wazuh alerts JSONL file, select the Wazuh format:
 
 The dashboard analyzes the data at startup. Restart the process to load changed input files. Case state persists in `data/case_state.json` by default; set `-State` to choose another local file.
 
+Select **ATT&CK coverage** in the dashboard to search rules by tactic or technique, review their required telemetry, and see the alert count for each rule. Technique links open official MITRE ATT&CK Enterprise pages. A mapping is analytic context, not proof that an alert is malicious.
+
 ## Batch reports
 
 ```powershell
 .\run_analysis.ps1
 ```
 
-The default output is `reports/demo/`. Provide an alternate dataset and output directory as parameters:
+The default output is `reports/demo/`; it contains `alerts.json`, `cases.json`, `attack_coverage.json`, and `summary.md`. The summary includes the rule-to-technique map. Provide an alternate dataset and output directory as parameters:
 
 ```powershell
 .\run_analysis.ps1 -Events .\lab-events.jsonl -Output reports\lab-run

@@ -27,6 +27,10 @@
             <span class="nav-icon" aria-hidden="true">⌕</span> Event explorer
             <span class="nav-count" id="navEventCount">0</span>
           </button>
+          <button class="nav-item" data-view="attackView" type="button">
+            <span class="nav-icon" aria-hidden="true">⌖</span> ATT&amp;CK coverage
+            <span class="nav-count" id="navCoverageCount">0</span>
+          </button>
         </nav>
         <div class="sidebar-spacer"></div>
         <div class="lab-card">
@@ -173,6 +177,33 @@
             <div class="empty-state" id="eventsEmpty" hidden><div class="empty-icon">⌕</div><strong>No matching events</strong><span>Try another search or event type.</span></div>
           </section>
           <footer class="page-footer">Imported event details stay on this computer and are not sent to an external service.</footer>
+        </section>
+
+        <section class="page-view" id="attackView" hidden>
+          <div class="page-heading cases-heading">
+            <div><div class="eyebrow">MITRE ATT&amp;CK ENTERPRISE</div><h1>Threat detection coverage</h1><p>Review configured detection rules against ATT&amp;CK techniques, tactics, and required telemetry.</p></div>
+            <div class="queue-total"><strong id="attackRuleMetric">0</strong><span>mapped rules</span></div>
+          </div>
+          <section class="metric-grid attack-metrics" aria-label="ATT&CK coverage summary">
+            <article class="metric-card"><div class="metric-top"><span>Techniques covered</span><span class="metric-symbol symbol-blue">⌖</span></div><div class="metric-value" id="attackTechniqueMetric">0</div><div class="metric-foot"><span class="metric-note">Unique techniques and sub-techniques</span></div></article>
+            <article class="metric-card"><div class="metric-top"><span>Tactics represented</span><span class="metric-symbol symbol-violet">◫</span></div><div class="metric-value" id="attackTacticMetric">0</div><div class="metric-foot"><span class="metric-note">Across configured rules</span></div></article>
+            <article class="metric-card"><div class="metric-top"><span>Alerts mapped</span><span class="metric-symbol symbol-amber">⌁</span></div><div class="metric-value" id="attackAlertMetric">0</div><div class="metric-foot"><span class="metric-note">From the current event set</span></div></article>
+          </section>
+          <section class="panel table-panel full-queue">
+            <div class="queue-toolbar">
+              <label class="search-box"><span aria-hidden="true">⌕</span><input id="attackSearch" type="search" placeholder="Search techniques, rules, telemetry…" autocomplete="off" /></label>
+              <label class="select-wrap"><span class="sr-only">Filter by ATT&CK tactic</span><select id="attackTacticFilter"><option value="all">All tactics</option></select></label>
+            </div>
+            <div class="table-wrap">
+              <table class="attack-table">
+                <thead><tr><th>TACTIC</th><th>TECHNIQUE</th><th>DETECTION RULE</th><th>TELEMETRY / EVENT TYPES</th><th>ALERTS</th></tr></thead>
+                <tbody id="attackCoverageBody"></tbody>
+              </table>
+            </div>
+            <div class="empty-state" id="attackCoverageEmpty" hidden><div class="empty-icon">⌖</div><strong>No matching detection mappings</strong><span>Try a different tactic or search term.</span></div>
+          </section>
+          <div class="coverage-note"><strong>How to read this view</strong><span>ATT&amp;CK mappings describe the behavior a rule is designed to detect; an alert is not proof of adversary activity or attribution. Confirm the underlying events, platform, and sensor coverage before drawing conclusions.</span></div>
+          <footer class="page-footer">Technique links open official MITRE ATT&amp;CK pages. Tactic counts are based on the configured rules, not a claim of complete ATT&amp;CK coverage.</footer>
         </section>
       </main>
     </div>

@@ -1,4 +1,4 @@
-const state = { overview: null, cases: [], alerts: [], events: [], activeView: "dashboardView", toastTimer: null };
+const state = { overview: null, cases: [], alerts: [], events: [], coverage: [], activeView: "dashboardView", toastTimer: null };
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
@@ -26,6 +26,16 @@ function dateLabel(value, withTime = true) {
 function severityBadge(severity) {
   const safe = escapeHtml(String(severity || "low").toLowerCase());
   return `<span class="severity-badge ${safe}">${safe}</span>`;
+}
+
+function attackLink(attack, fallbackId = "") {
+  const id = String(attack?.technique_id || fallbackId || "");
+  if (!id) return "";
+  const name = attack?.technique_name ? ` · ${escapeHtml(attack.technique_name)}` : "";
+  if (!/^T\d{4}(?:\.\d{3})?$/.test(id)) return `${escapeHtml(id)}${name}`;
+  const href = `https://attack.mitre.org/techniques/${id.replace(".", "/")}/`;
+  const tactics = Array.isArray(attack?.tactics) ? attack.tactics.filter(Boolean).join(", ") : "";
+  return `<a class="attack-link" href="${href}" target="_blank" rel="noopener noreferrer">${escapeHtml(id)}${name}</a>${tactics ? `<span class="attack-tactics">${escapeHtml(tactics)}</span>` : ""}`;
 }
 
 function statusBadge(status) {
@@ -58,13 +68,14 @@ function hideError() { $("#pageError").hidden = true; }
 async function refresh() {
   try {
     hideError();
-    const [overview, cases, alerts, events] = await Promise.all([
-      requestJson("/api/overview"), requestJson("/api/cases"), requestJson("/api/alerts"), requestJson("/api/events")
+    const [overview, cases, alerts, events, coverage] = await Promise.all([
+      requestJson("/api/overview"), requestJson("/api/cases"), requestJson("/api/alerts"), requestJson("/api/events"), requestJson("/api/coverage")
     ]);
     state.overview = overview;
     state.cases = cases;
     state.alerts = alerts;
     state.events = events;
+    state.coverage = coverage;
     renderAll();
   } catch (error) {
     showError(error);
@@ -79,6 +90,7 @@ function renderAll() {
   renderAlerts();
   renderCases();
   renderEvents();
+  renderCoverage();
 }
 
 function renderOverview() {
@@ -138,7 +150,7 @@ function renderAlerts() {
   const body = $("#alertsBody");
   $("#alertsEmpty").hidden = alerts.length > 0;
   body.innerHTML = alerts.map((alert) => `<tr>
-    <td><div class="case-title">${escapeHtml(alert.rule_name)}</div><div class="case-id">${escapeHtml(alert.rule_id)}${alert.attack_technique ? ` · ${escapeHtml(alert.attack_technique)}` : ""}</div></td>
+    <td><div class="case-title">${escapeHtml(alert.rule_name)}</div><div class="case-id">${escapeHtml(alert.rule_id)}${alert.attack_technique ? ` · ${attackLink(alert.attack, alert.attack_technique)}` : ""}</div></td>
     <td>${severityBadge(alert.severity)}</td><td>${escapeHtml(alert.entities?.host || "—")}</td>
     <td>${(alert.event_ids || []).length} event${(alert.event_ids || []).length === 1 ? "" : "s"}</td><td>${escapeHtml(dateLabel(alert.timestamp))}</td>
   </tr>`).join("");
@@ -191,6 +203,57 @@ function renderEvents() {
     : `${filtered.length} matching event${filtered.length === 1 ? "" : "s"}.`;
 }
 
+function renderCoverage() {
+  const coverage = state.coverage || [];
+  const mapped = coverage.filter((row) => row.attack?.technique_id);
+  const techniques = new Set(mapped.map((row) => row.attack.technique_id));
+  const tactics = new Set(mapped.flatMap((row) => row.attack.tactics || []));
+  $("#attackRuleMetric").textContent = mapped.length;
+  $("#attackTechniqueMetric").textContent = techniques.size;
+  $("#attackTacticMetric").textContent = tactics.size;
+  $("#attackAlertMetric").textContent = mapped.reduce((sum, row) => sum + (Number(row.alert_count) || 0), 0);
+  $("#navCoverageCount").textContent = mapped.length;
+
+  const tacticFilter = $("#attackTacticFilter");
+  const previousTactic = tacticFilter.value;
+  const tacticList = [...tactics].sort((a, b) => a.localeCompare(b));
+  tacticFilter.innerHTML = `<option value="all">All tactics</option>${tacticList.map((tactic) => `<option value="${escapeHtml(tactic)}">${escapeHtml(tactic)}</option>`).join("")}`;
+  tacticFilter.value = tacticList.includes(previousTactic) ? previousTactic : "all";
+
+  const query = $("#attackSearch").value.trim().toLowerCase();
+  const selectedTactic = tacticFilter.value;
+  const filtered = coverage.filter((row) => {
+    const rowTactics = row.attack?.tactics || [];
+    if (selectedTactic !== "all" && !rowTactics.includes(selectedTactic)) return false;
+    const searchable = [
+      row.rule_id, row.rule_name, row.summary, row.attack?.technique_id,
+      row.attack?.technique_name, ...rowTactics, ...(row.event_types || []), ...(row.data_sources || [])
+    ].join(" ").toLowerCase();
+    return !query || searchable.includes(query);
+  }).sort((a, b) => {
+    const tacticCompare = (a.attack?.tactics?.[0] || "Unmapped").localeCompare(b.attack?.tactics?.[0] || "Unmapped");
+    return tacticCompare || String(a.attack?.technique_id || "").localeCompare(String(b.attack?.technique_id || "")) || a.rule_id.localeCompare(b.rule_id);
+  });
+
+  const body = $("#attackCoverageBody");
+  $("#attackCoverageEmpty").hidden = filtered.length > 0;
+  body.innerHTML = filtered.map((row) => {
+    const rowTactics = row.attack?.tactics || [];
+    const tacticMarkup = rowTactics.length
+      ? rowTactics.map((tactic) => `<span class="tactic-pill">${escapeHtml(tactic)}</span>`).join("")
+      : `<span class="unmapped-label">Unmapped</span>`;
+    const eventMarkup = (row.event_types || []).map((type) => `<span class="event-type">${escapeHtml(type.replaceAll("_", " "))}</span>`).join(" ");
+    const sourceMarkup = (row.data_sources || []).map(escapeHtml).join(" ");
+    return `<tr>
+      <td><div class="tactic-list">${tacticMarkup}</div></td>
+      <td>${row.attack ? attackLink(row.attack) : `<span class="unmapped-label">No ATT&amp;CK mapping</span>`}</td>
+      <td><div class="case-title">${escapeHtml(row.rule_name)}</div><div class="case-id">${escapeHtml(row.rule_id)} · ${escapeHtml(row.detection_type)} · ${escapeHtml(row.severity)}</div><div class="coverage-summary">${escapeHtml(row.summary)}</div></td>
+      <td><div class="coverage-events">${eventMarkup || "—"}</div><div class="coverage-data">${sourceMarkup}</div></td>
+      <td><strong class="coverage-alert-count">${Number(row.alert_count) || 0}</strong></td>
+    </tr>`;
+  }).join("");
+}
+
 function attachCaseRows(parent) {
   $$("tr[data-case]", parent).forEach((row) => row.addEventListener("click", () => openCase(row.dataset.case)));
 }
@@ -217,7 +280,7 @@ function openCase(caseId) {
   const events = state.events.filter((event) => eventIds.has(event.event_id)).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
   $("#drawerTitle").textContent = item.title;
   $("#drawerCaseId").textContent = item.case_id;
-  const alertCards = alerts.map((alert) => `<article class="alert-evidence"><div class="evidence-head"><strong>${escapeHtml(alert.rule_name)}</strong>${severityBadge(alert.severity)}</div><div class="evidence-meta">${escapeHtml(alert.rule_id)}${alert.attack_technique ? ` · ATT&CK ${escapeHtml(alert.attack_technique)}` : ""} · ${escapeHtml(dateLabel(alert.timestamp))}</div><div class="evidence-summary">${escapeHtml(alert.summary)}</div><div class="evidence-meta">Evidence: ${(alert.event_ids || []).map(escapeHtml).join(", ")}</div></article>`).join("");
+  const alertCards = alerts.map((alert) => `<article class="alert-evidence"><div class="evidence-head"><strong>${escapeHtml(alert.rule_name)}</strong>${severityBadge(alert.severity)}</div><div class="evidence-meta">${escapeHtml(alert.rule_id)}${alert.attack_technique ? ` · ${attackLink(alert.attack, alert.attack_technique)}` : ""} · ${escapeHtml(dateLabel(alert.timestamp))}</div><div class="evidence-summary">${escapeHtml(alert.summary)}</div><div class="evidence-meta">Evidence: ${(alert.event_ids || []).map(escapeHtml).join(", ")}</div></article>`).join("");
   const timeline = events.map((event) => {
     const details = Object.entries(event.details || {}).filter(([key]) => key !== "source").map(([key, value]) => `${key}: ${typeof value === "string" ? value : JSON.stringify(value)}`).join(" · ");
     return `<div class="timeline-item"><div class="timeline-time">${escapeHtml(dateLabel(event.timestamp))}</div><div class="timeline-title">${escapeHtml(event.event_type.replaceAll("_", " "))} · ${escapeHtml(event.host)}</div><div class="timeline-detail">${escapeHtml([event.user && `user ${event.user}`, event.source_ip && `source ${event.source_ip}`, details].filter(Boolean).join(" · ") || event.event_id)}</div></div>`;
@@ -282,7 +345,7 @@ function setView(viewId) {
   state.activeView = viewId;
   $$(".page-view").forEach((view) => { view.hidden = view.id !== viewId; });
   $$(".nav-item").forEach((button) => button.classList.toggle("active", button.dataset.view === viewId));
-  $("#pageCrumb").textContent = ({ casesView: "Incident queue", eventsView: "Event explorer" })[viewId] || "Overview";
+  $("#pageCrumb").textContent = ({ casesView: "Incident queue", eventsView: "Event explorer", attackView: "ATT&CK coverage" })[viewId] || "Overview";
 }
 
 $$('.nav-item').forEach((button) => button.addEventListener("click", () => setView(button.dataset.view)));
@@ -293,6 +356,8 @@ $("#statusFilter").addEventListener("change", renderCases);
 $("#severityFilter").addEventListener("change", renderCases);
 $("#eventSearch").addEventListener("input", renderEvents);
 $("#eventTypeFilter").addEventListener("change", renderEvents);
+$("#attackSearch").addEventListener("input", renderCoverage);
+$("#attackTacticFilter").addEventListener("change", renderCoverage);
 $("#closeDrawer").addEventListener("click", closeDrawer);
 $("#drawerBackdrop").addEventListener("click", closeDrawer);
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeDrawer(); });

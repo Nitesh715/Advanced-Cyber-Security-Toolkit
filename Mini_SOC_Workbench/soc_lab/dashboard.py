@@ -1,5 +1,3 @@
-"""Offline-first, loopback-only web dashboard for the Mini-SOC workbench."""
-
 from __future__ import annotations
 
 import argparse
@@ -15,7 +13,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from .engine import correlate_alerts, load_events, load_rules, run_detections
+from .engine import build_attack_coverage, correlate_alerts, load_events, load_rules, run_detections
 
 ASSET_ROOT = Path(__file__).resolve().parent / "assets"
 STATIC_ROOT = Path(__file__).resolve().parent / "static"
@@ -34,12 +32,14 @@ class DashboardContext:
         events: list[dict[str, Any]],
         alerts: list[dict[str, Any]],
         cases: list[dict[str, Any]],
+        rules: list[dict[str, Any]],
         state_path: Path,
         source_format: str,
     ) -> None:
         self.events = events
         self.alerts = alerts
         self.cases = cases
+        self.rules = rules
         self.state_path = state_path
         self.source_format = source_format
         self.lock = threading.RLock()
@@ -170,6 +170,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if path == "/api/alerts":
             self._send_json(self.context.alerts)
             return
+        if path == "/api/coverage":
+            self._send_json(build_attack_coverage(self.context.rules, self.context.alerts))
+            return
         if path == "/api/events":
             self._send_json(self.context.events)
             return
@@ -272,7 +275,7 @@ def main() -> int:
             }
             for event in event_objects
         ]
-        context = DashboardContext(events, alerts, cases, args.state, args.format)
+        context = DashboardContext(events, alerts, cases, rules, args.state, args.format)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"dashboard: {exc}", file=sys.stderr)
         return 2

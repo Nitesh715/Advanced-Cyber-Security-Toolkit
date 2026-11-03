@@ -21,6 +21,7 @@ def load_rules(path: Path) -> list[dict[str, Any]]:
     if not isinstance(data, dict) or not isinstance(data.get("rules"), list):
         raise ValueError("rules file must contain a top-level 'rules' array")
     rules = data["rules"]
+    seen_rule_ids: set[str] = set()
     for index, rule in enumerate(rules, start=1):
         if not isinstance(rule, dict):
             raise ValueError(f"rule #{index} must be an object")
@@ -28,10 +29,28 @@ def load_rules(path: Path) -> list[dict[str, Any]]:
         missing = [key for key in required if key not in rule]
         if missing:
             raise ValueError(f"rule #{index} is missing: {', '.join(missing)}")
-        if rule["type"] not in {"single", "threshold", "sequence"}:
+        if not isinstance(rule["id"], str) or not rule["id"].strip():
+            raise ValueError(f"rule #{index}: id must be a non-empty string")
+        if not isinstance(rule["type"], str) or rule["type"] not in {"single", "threshold", "sequence"}:
             raise ValueError(f"rule {rule['id']}: unsupported type {rule['type']!r}")
-        if rule["severity"] not in SEVERITY_RANK:
+        if not isinstance(rule["severity"], str) or rule["severity"] not in SEVERITY_RANK:
             raise ValueError(f"rule {rule['id']}: unsupported severity {rule['severity']!r}")
+        if rule["id"] in seen_rule_ids:
+            raise ValueError(f"rule {rule['id']}: duplicate rule id")
+        seen_rule_ids.add(rule["id"])
+        distinct_by = rule.get("distinct_by", [])
+        if not isinstance(distinct_by, list) or any(not isinstance(field, str) for field in distinct_by):
+            raise ValueError(f"rule {rule['id']}: distinct_by must be a list of field names")
+        attack = rule.get("attack")
+        if attack is not None:
+            if not isinstance(attack, dict):
+                raise ValueError(f"rule {rule['id']}: attack mapping must be an object")
+            if not isinstance(attack.get("technique_id"), str) or not attack["technique_id"].startswith("T"):
+                raise ValueError(f"rule {rule['id']}: attack mapping needs a technique_id")
+            if not isinstance(attack.get("technique_name"), str) or not attack["technique_name"].strip():
+                raise ValueError(f"rule {rule['id']}: attack mapping needs a technique_name")
+            if not isinstance(attack.get("tactics"), list) or not all(isinstance(item, str) for item in attack["tactics"]):
+                raise ValueError(f"rule {rule['id']}: attack tactics must be a list of strings")
     return rules
 
 
@@ -40,7 +59,10 @@ def _matches(event: Event, criteria: dict[str, Any]) -> bool:
 
 
 def _group_key(event: Event, fields: list[str]) -> tuple[str, ...]:
-    return tuple(str(event.field(field) or "<missing>") for field in fields)
+    return tuple(
+        "<missing>" if event.field(field) in (None, "") else str(event.field(field))
+        for field in fields
+    )
 
 
 def _alert(
@@ -58,7 +80,8 @@ def _alert(
         "entities": entities,
         "summary": rule.get("summary", rule["name"]),
         "event_ids": [event.event_id for event in matched_events],
-        "attack_technique": rule.get("attack_technique"),
+        "attack_technique": (rule.get("attack") or {}).get("technique_id", rule.get("attack_technique")),
+        "attack": rule.get("attack"),
         "recommended_actions": rule.get("recommended_actions", []),
     }
 
@@ -88,6 +111,7 @@ def run_detections(events: list[Event], rules: list[dict[str, Any]]) -> list[dic
             window = timedelta(minutes=window_minutes)
             groups: dict[tuple[str, ...], deque[Event]] = defaultdict(deque)
             last_alert_at: dict[tuple[str, ...], datetime] = {}
+            distinct_by = rule.get("distinct_by", [])
             for event in ordered_events:
                 if not _matches(event, criteria):
                     continue
@@ -98,8 +122,16 @@ def run_detections(events: list[Event], rules: list[dict[str, Any]]) -> list[dic
                     bucket.popleft()
                 alert_time = last_alert_at.get(key)
                 outside_cooldown = alert_time is None or event.timestamp - alert_time > window
-                if len(bucket) >= threshold and outside_cooldown:
+                if distinct_by:
+                    latest_by_distinct: dict[tuple[str, ...], Event] = {}
+                    for candidate in bucket:
+                        latest_by_distinct[_group_key(candidate, distinct_by)] = candidate
+                    threshold_reached = len(latest_by_distinct) >= threshold
+                    matched = sorted(latest_by_distinct.values(), key=lambda item: item.timestamp)[-threshold:]
+                else:
+                    threshold_reached = len(bucket) >= threshold
                     matched = list(bucket)[-threshold:]
+                if threshold_reached and outside_cooldown:
                     entities = {field: value for field, value in zip(group_by, key) if value != "<missing>"}
                     rule_alert_number += 1
                     alerts.append(_alert(rule, matched, entities, rule_alert_number))
@@ -130,6 +162,45 @@ def run_detections(events: list[Event], rules: list[dict[str, Any]]) -> list[dic
                     starts[_group_key(event, group_by)].append(event)
 
     return sorted(alerts, key=lambda alert: datetime.fromisoformat(alert["timestamp"]))
+
+
+def build_attack_coverage(
+    rules: list[dict[str, Any]], alerts: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Return the configured rule-to-ATT&CK map plus current alert counts."""
+    alert_counts: dict[str, int] = defaultdict(int)
+    for alert in alerts:
+        alert_counts[alert["rule_id"]] += 1
+
+    coverage: list[dict[str, Any]] = []
+    for rule in rules:
+        attack = rule.get("attack")
+        if attack is None and rule.get("attack_technique"):
+            attack = {
+                "technique_id": rule["attack_technique"],
+                "technique_name": "ATT&CK technique (name not provided)",
+                "tactics": [],
+            }
+        criteria = [rule.get("match", {}), rule.get("start_match", {}), rule.get("end_match", {})]
+        event_types = sorted({
+            item["event_type"]
+            for item in criteria
+            if isinstance(item, dict) and isinstance(item.get("event_type"), str)
+        })
+        coverage.append(
+            {
+                "rule_id": rule["id"],
+                "rule_name": rule["name"],
+                "severity": rule["severity"],
+                "detection_type": rule["type"],
+                "summary": rule.get("summary", rule["name"]),
+                "event_types": event_types,
+                "data_sources": rule.get("data_sources", []),
+                "attack": attack,
+                "alert_count": alert_counts.get(rule["id"], 0),
+            }
+        )
+    return coverage
 
 
 def correlate_alerts(

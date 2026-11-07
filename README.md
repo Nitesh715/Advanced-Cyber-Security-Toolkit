@@ -5,6 +5,7 @@ A Python desktop toolkit for **authorized defensive security testing, system che
 ![Python](https://img.shields.io/badge/Python-3.x-3776AB?logo=python&logoColor=white)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-informational)
 ![Focus](https://img.shields.io/badge/Focus-Defensive%20Security-blue)
+![Interface](https://img.shields.io/badge/Interface-Tkinter-informational) ![Storage](https://img.shields.io/badge/Storage-SQLite-003B57?logo=sqlite&logoColor=white)
 
 ## Features
 

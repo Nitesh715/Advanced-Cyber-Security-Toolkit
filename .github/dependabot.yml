@@ -33,6 +33,17 @@ updates:
           - patch
     open-pull-requests-limit: 5
 
+  - package-ecosystem: pip
+    directory: /AI_Malware_Analyzer
+    schedule:
+      interval: weekly
+    groups:
+      malware-analyzer-non-major:
+        update-types:
+          - minor
+          - patch
+    open-pull-requests-limit: 5
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

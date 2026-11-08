@@ -30,6 +30,9 @@ jobs:
           elif [[ -f pyproject.toml ]]; then
             python -m pip install -e .
           fi
+          if [[ -f Forensics_Timeline_Builder/requirements.txt ]]; then
+            python -m pip install -r Forensics_Timeline_Builder/requirements.txt
+          fi
           python -m pip install pytest
 
       - name: Compile Python files

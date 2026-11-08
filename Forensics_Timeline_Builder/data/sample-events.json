@@ -1,0 +1,5 @@
+[
+  {"timestamp":"2026-11-08T09:42:00Z","source":"windows-security-log","host":"LAB-PC-01","event_type":"account_login_failure","summary":"Failed interactive login","actor":"lab-user","artifact":"Security.evtx","details":{"event_id":4625}},
+  {"timestamp":"2026-11-08T09:47:00Z","source":"endpoint-agent","host":"LAB-PC-01","event_type":"process_start","summary":"Unusual script interpreter started","actor":"lab-user","artifact":"process-events.jsonl","details":{"image":"powershell.exe"}}
+]
+

@@ -36,6 +36,9 @@ jobs:
           if [[ -f Mini_SOC_Workbench/pyproject.toml ]]; then
             python -m pip install -e Mini_SOC_Workbench
           fi
+          if [[ -f AI_Malware_Analyzer/requirements.txt ]]; then
+            python -m pip install -r AI_Malware_Analyzer/requirements.txt
+          fi
           python -m pip install pytest
 
       - name: Compile Python files
